@@ -62,10 +62,12 @@ where brand not in (select brand from brands_it);
 -- что они активны и имеют оценку имущества (property_valuation) выше среднего среди клиентов из того же штата.
 
 with avg_prop_val as (
+	-- Средняя оценка имущества по штату
 	select c.state, avg(c.property_valuation) avg_prop_val from customer c
 	group by 1
 ),
 popular_customers as (
+	-- Клиенты с покупками по указанным брендам, отсортированные по количеству покупок по убыванию
 	select c.customer_id, count(1) from customer c 
 		join orders o on c.customer_id = o.customer_id 
 		join order_items oi on oi.order_id = o.order_id 
@@ -77,12 +79,14 @@ popular_customers as (
 			order by 2 desc
 ),
 top_prop_val as (
+-- Все активные клиенты у которых оценка имущества выше среднего
 select c.customer_id, c.first_name, c.last_name, c.state  from customer c
 		join avg_prop_val apv on c.state = apv.state 
 		where 1=1
 			and c.deceased_indicator = 'N'
 			and c.property_valuation > apv.avg_prop_val 
 		)
+-- Отбираем из всех клиентов top_prop_val тех что входят в popular_customers
 select tpv.customer_id, tpv.first_name, tpv.last_name from popular_customers pc
 join top_prop_val tpv on pc.customer_id = tpv.customer_id 
 order by pc.count desc
@@ -119,7 +123,7 @@ join order_items oi on oi.order_id = o.order_id
 where c.job_industry_category = 'IT'
   and oi.product_id in (select product_id from top_products)
 group by c.customer_id, c.first_name, c.last_name
-having count(distinct oi.product_id) >= 2;
+having count(distinct oi.product_id) = 2;
 
 
 /* 8. Вывести клиентов (ID, имя, фамилия, сфера деятельности) из сфер IT или Health, которые совершили не менее 3 подтвержденных заказов в период 2017-01-01 по 2017-03-01, и при этом их общий доход от этих заказов превышает 10 000 долларов.
@@ -143,7 +147,7 @@ with customer_orders as (
       and o.order_date::date between '2017-01-01' and '2017-03-01'
       and o.order_status = 'Approved'
     group by c.customer_id, c.first_name, c.last_name, c.job_industry_category
-    having count(*) >= 3 
+    having count(1) >= 3 
        and sum(oi.quantity * p.list_price) > 10000
 )
 select 
